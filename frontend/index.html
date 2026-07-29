@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zomato Notes</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header class="site-header">
+        <h1>Zomato Notes</h1>
+        <p>Internal Notes Dashboard</p>
+    </header>
+
+    <nav class="top-nav">
+        <a href="#notes-section">Notes</a>
+        <a href="#add-note-section">Add Note</a>
+        <a href="#categories-section">Categories</a>
+    </nav>
+
+    <main>
+
+        <!-- Notes -->
+        <section id="notes-section" class="section-card">
+
+            <h2>Notes</h2>
+
+            <div class="search-area">
+                <label for="searchInput">Search notes</label>
+                <input type="search" id="searchInput" placeholder="Search by title or tag...">
+                <p id="searchStatus" class="search-status"></p>
+            </div>
+
+            <div id="notesLoading" class="loading-message">
+                Loading notes...
+            </div>
+
+            <div id="notesError" class="error-message" hidden></div>
+
+            <div id="notesContainer" class="notes-list">
+                <!-- Notes are dynamically created by JavaScript -->
+            </div>
+        </section>
+
+
+        <!-- Add Note -->
+        <section id="add-note-section" class="section-card">
+
+            <h2>Add Note</h2>
+
+            <form id="noteForm" novalidate>
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" name="title" placeholder="Enter note title">
+                </div>
+
+
+                <div class="form-group">
+                    <label for="content">Content</label>
+                    <textarea id="content" name="content" placeholder="Enter note content"></textarea>
+                </div>
+
+
+                <div class="form-group">
+                    <label for="tag">Tag</label>
+                    <input type="text" id="tag" name="tag" placeholder="Enter tag">
+                </div>
+
+
+                <div class="form-group">
+                    <label for="owner_id">Owner ID</label>
+                    <input type="number" id="owner_id" name="owner_id" placeholder="Enter owner ID">
+                </div>
+
+
+                <div id="formError" class="form-error" role="alert" hidden></div>
+
+
+                <button type="submit" id="addNoteButton">
+                    Add Note
+                </button>
+
+            </form>
+
+
+            <!-- Categories -->
+            <section id="categories-section" class="section-card">
+                <h2>Categories</h2>
+                <div id="category-tree" class="category-tree">
+                    <!-- Category tree is generated recursively -->
+                </div>
+            </section>
+
+    </main>
+
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Zomato Notes</p>
+    </footer>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
