@@ -66,6 +66,7 @@ main {
 
 }
 
+
 /* Sections */
 
 .section-card {
@@ -355,4 +356,10 @@ button {
         padding: 18px;
     }
 
+}
+
+.quick-find-highlight {
+    outline: 3px solid currentColor;
+    transform: scale(1.02);
+    transition: transform 0.2s ease;
 }

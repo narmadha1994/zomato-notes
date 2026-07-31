@@ -31,15 +31,71 @@
             <div class="search-area">
                 <label for="searchInput">Search notes</label>
                 <input type="search" id="searchInput" placeholder="Search by title or tag...">
+
+                <label for="sortMode">Sort by:</label>
+
+                <select id="sortMode">
+                    <option value="relevance">Relevance</option>
+                    <option value="date">Date</option>
+                </select>
+
                 <p id="searchStatus" class="search-status"></p>
+
+            </div>
+
+            <div class="lookup-area">
+
+                <label for="titleLookup">
+                    Jump to Exact Title
+                </label>
+
+                <input type="text" id="titleLookup" placeholder="Enter exact title">
+
+                <select id="lookupAlgo">
+                    <option value="iterative">
+                        Iterative
+                    </option>
+
+                    <option value="recursive">
+                        Recursive
+                    </option>
+                </select>
+
+                <button id="lookupButton">
+                    Find
+                </button>
+
             </div>
 
             <div id="notesLoading" class="loading-message">
                 Loading notes...
             </div>
+            <div class="quick-tag-area">
+                <h3>Quick Tag Jump</h3>
+                <button type="button" class="quick-tag-button" data-tag="work">
+                    Work
+                </button>
 
+                <button type="button" class="quick-tag-button" data-tag="health">
+                    Health
+                </button>
+
+                <button type="button" class="quick-tag-button" data-tag="recipes">
+                    Recipes
+                </button>
+
+                <button type="button" class="quick-tag-button" data-tag="travel">
+                    Travel
+                </button>
+
+                <button type="button" class="quick-tag-button" data-tag="random">
+                    Random
+                </button>
+
+                <p id="quickTagStatus" class="search-status"></p>
+
+            </div>
             <div id="notesError" class="error-message" hidden></div>
-
             <div id="notesContainer" class="notes-list">
                 <!-- Notes are dynamically created by JavaScript -->
             </div>
@@ -48,7 +104,6 @@
 
         <!-- Add Note -->
         <section id="add-note-section" class="section-card">
-
             <h2>Add Note</h2>
 
             <form id="noteForm" novalidate>
@@ -89,9 +144,7 @@
             <!-- Categories -->
             <section id="categories-section" class="section-card">
                 <h2>Categories</h2>
-                <div id="category-tree" class="category-tree">
-                    <!-- Category tree is generated recursively -->
-                </div>
+                <div id="categoryTree" class="category-tree"></div>
             </section>
 
     </main>

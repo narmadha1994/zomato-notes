@@ -16,6 +16,37 @@ async function fetchNotes(tag = "") {
     return await response.json();
 }
 
+async function fetchRankedNotes(keyword, sortBy) {
+    let url;
+
+    if (sortBy === "date") {
+        url = `${API_URL}/notes/search?sort_by=date`;
+    } else {
+        url = `${API_URL}/notes/search?keyword=${encodeURIComponent(keyword)}`;
+    }
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(`Ranking search failed: ${response.status}`);
+    }
+
+    return await response.json();
+}
+
+async function lookupTitle(title, algo) {
+
+    const response = await fetch(
+        `${API_URL}/notes/lookup?title=${encodeURIComponent(title)}&algo=${algo}`
+    );
+
+    if (!response.ok) {
+        throw new Error("Lookup failed");
+    }
+
+    return await response.json();
+}
+
 async function createNote(noteData) {
 
     const response = await fetch(`${API_URL}/notes`, {
@@ -86,34 +117,24 @@ async function deleteNote(noteId, token) {
 // DOM ELEMENTS
 // =====================================================
 
-const notesContainer =
-    document.getElementById("notesContainer");
-
-const notesLoading =
-    document.getElementById("notesLoading");
-
-const notesError =
-    document.getElementById("notesError");
-
-const noteForm =
-    document.getElementById("noteForm");
-
-const formError =
-    document.getElementById("formError");
-
-const searchInput =
-    document.getElementById("searchInput");
-
-const searchStatus =
-    document.getElementById("searchStatus");
-
-const categoryTreeContainer =
-    document.getElementById("categoryTree");
+const notesContainer = document.getElementById("notesContainer");
+const notesLoading = document.getElementById("notesLoading");
+const notesError = document.getElementById("notesError");
+const noteForm = document.getElementById("noteForm");
+const formError = document.getElementById("formError");
+const searchInput = document.getElementById("searchInput");
+const searchStatus = document.getElementById("searchStatus");
+const sortMode = document.getElementById("sortMode");
+const titleLookup = document.getElementById("titleLookup");
+const lookupAlgo = document.getElementById("lookupAlgo");
+const lookupButton = document.getElementById("lookupButton");
+const categoryTreeContainer = document.getElementById("categoryTree");
+const quickTagButtons = document.querySelectorAll(".quick-tag-button");
+const quickTagStatus = document.getElementById("quickTagStatus");
 
 // Keep the latest notes in memory.
 // Search can filter this data without another API request.
 let allNotes = [];
-
 // Used for debounced search.
 let searchTimeout;
 
@@ -123,9 +144,7 @@ let searchTimeout;
 
 function renderNotes(notes) {
 
-
     notesContainer.innerHTML = "";
-
     if (notes.length === 0) {
 
         const emptyMessage =
@@ -142,47 +161,35 @@ function renderNotes(notes) {
     notes.forEach(function (note) {
 
         // Main note card
-        const noteCard =
-            document.createElement("article");
-
+        const noteCard = document.createElement("article");
         noteCard.className = "note";
 
+        // Store the backend note ID on the card
+        noteCard.dataset.noteId = note.id;
 
         // Title
-        const title =
-            document.createElement("h3");
-
+        const title = document.createElement("h3");
         title.textContent = note.title;
-
         noteCard.appendChild(title);
 
-
         // Content
-        const content =
-            document.createElement("p");
-
+        const content = document.createElement("p");
         content.textContent = note.content;
-
         noteCard.appendChild(content);
 
 
         // Tag
-        const tag =
-            document.createElement("span");
-
+        const tag = document.createElement("span");
         tag.className = "note-tag";
-
         tag.textContent =
             `Tag: ${note.tag || "No tag"} `;
-
         noteCard.appendChild(tag);
 
 
         // AI suggestion from Part 3
         if (note.ai_suggestion) {
 
-            const suggestion =
-                document.createElement("div");
+            const suggestion = document.createElement("div");
 
             suggestion.className =
                 "ai-suggestion";
@@ -220,11 +227,9 @@ function renderNotes(notes) {
         deleteButton.textContent =
             "Delete";
 
-
         // Store note ID on the button
         deleteButton.dataset.noteId =
             note.id;
-
 
         // Delete click event
         deleteButton.addEventListener(
@@ -514,6 +519,141 @@ searchInput.addEventListener(
 
 );
 
+sortMode.addEventListener("change", async function () {
+
+    const keyword =
+        searchInput.value.trim();
+
+    const selectedMode =
+        sortMode.value;
+
+    try {
+
+        if (selectedMode === "relevance" && !keyword) {
+            searchStatus.textContent =
+                "Enter a keyword to search by relevance.";
+            return;
+        }
+
+        searchStatus.textContent =
+            "Searching...";
+
+        const results =
+            await fetchRankedNotes(
+                keyword,
+                selectedMode
+            );
+
+        renderNotes(results);
+
+        searchStatus.textContent =
+            `${results.length} result(s) found.`;
+
+    } catch (error) {
+
+        console.error(
+            "Ranking search error:",
+            error
+        );
+
+        searchStatus.textContent =
+            "Unable to perform ranked search.";
+    }
+});
+
+
+// =====================================================
+// QUICK TAG JUMP - LINEAR SEARCH
+// =====================================================
+
+async function quickFindTag(tag) {
+
+    quickTagStatus.textContent =
+        `Finding first "${tag}" note...`;
+
+    try {
+
+        const response = await fetch(
+            `${API_URL}/notes/quick-find?tag=${encodeURIComponent(tag)}`
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Quick tag search failed: ${response.status}`
+            );
+        }
+
+        const result = await response.json();
+
+        // No matching note
+        if (!result.id) {
+
+            quickTagStatus.textContent =
+                `No note found with tag "${tag}".`;
+
+            return;
+        }
+
+        quickTagStatus.textContent =
+            `Found: ${result.title}`;
+
+        // Make sure the returned note is visible
+        renderNotes(allNotes);
+
+        // Find the matching note card
+        const noteCard =
+            notesContainer.querySelector(
+                `[data-note-id="${result.id}"]`
+            );
+
+        if (noteCard) {
+
+            // Scroll to the note
+            noteCard.scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+
+            // Highlight the note
+            noteCard.classList.add("quick-find-highlight");
+
+            // Remove highlight after 2 seconds
+            setTimeout(function () {
+                noteCard.classList.remove(
+                    "quick-find-highlight"
+                );
+            }, 2000);
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Quick tag search error:",
+            error
+        );
+
+        quickTagStatus.textContent =
+            "Unable to perform quick tag search.";
+    }
+}
+
+
+// Attach click events to all Quick Tag buttons
+quickTagButtons.forEach(function (button) {
+
+    button.addEventListener(
+        "click",
+        function () {
+
+            const tag =
+                button.dataset.tag;
+
+            quickFindTag(tag);
+        }
+    );
+
+});
+
 // =====================================================
 // RECURSIVE CATEGORY TREE
 // =====================================================
@@ -575,129 +715,51 @@ const CATEGORY_TREE = {
 
 
 };
-function renderCategoryTree(node, container) {
+
+function renderCategoryTree(node, parentElement) {
     const item = document.createElement("div");
-    item.classList.add("category-item");
+    item.className = "category-item";
 
     const row = document.createElement("div");
-    row.classList.add("category-row");
+    row.className = "category-row";
 
-    const toggle = document.createElement("button");
+    const toggleButton = document.createElement("button");
+    toggleButton.type = "button";
 
-    toggle.textContent =
-        node.children && node.children.length > 0 ? "−" : "•";
+    const hasChildren =
+        node.children && node.children.length > 0;
+
+    toggleButton.textContent = hasChildren ? "−" : "•";
 
     const name = document.createElement("span");
     name.textContent = node.name;
 
-    row.appendChild(toggle);
+    row.appendChild(toggleButton);
     row.appendChild(name);
+
     item.appendChild(row);
+    parentElement.appendChild(item);
 
-    const childrenContainer = document.createElement("div");
-    childrenContainer.classList.add("category-children");
-
-    if (node.children && node.children.length > 0) {
+    if (hasChildren) {
+        const childrenContainer = document.createElement("div");
+        childrenContainer.className = "category-children";
 
         node.children.forEach(function (child) {
             renderCategoryTree(child, childrenContainer);
         });
 
-        toggle.addEventListener("click", function () {
-            const isHidden = childrenContainer.hidden;
+        item.appendChild(childrenContainer);
 
-            childrenContainer.hidden = !isHidden;
-            toggle.textContent = isHidden ? "+" : "−";
+        toggleButton.addEventListener("click", function () {
+            childrenContainer.hidden =
+                !childrenContainer.hidden;
+
+            toggleButton.textContent =
+                childrenContainer.hidden ? "+" : "−";
         });
-
     } else {
-        toggle.disabled = true;
+        toggleButton.disabled = true;
     }
-
-    container.appendChild(item);
-}
-
-const categoryContainer =
-    document.getElementById("category-tree");
-
-renderCategoryTree(CATEGORY_TREE, categoryContainer);
-// Recursive function
-function createCategoryNode(category) {
-
-
-    const listItem =
-        document.createElement("li");
-
-    listItem.className =
-        "category-node";
-
-
-    const categoryName =
-        document.createElement("span");
-
-    categoryName.className =
-        "category-name";
-
-    categoryName.textContent =
-        category.name;
-
-    listItem.appendChild(categoryName);
-
-
-    // If children exist, recursively create them
-    if (
-        category.children &&
-        category.children.length > 0
-    ) {
-
-        const childList =
-            document.createElement("ul");
-
-        childList.className =
-            "category-children";
-
-
-        category.children.forEach(
-            function (child) {
-
-                const childNode =
-                    createCategoryNode(child);
-
-                childList.appendChild(childNode);
-            }
-        );
-
-
-        listItem.appendChild(childList);
-    }
-
-
-    return listItem;
-
-
-}
-
-// Render category tree
-function renderCategoryTree(tree) {
-
-
-    categoryTreeContainer.innerHTML = "";
-
-
-    const rootList =
-        document.createElement("ul");
-
-
-    const rootNode =
-        createCategoryNode(tree);
-
-
-    rootList.appendChild(rootNode);
-
-
-    categoryTreeContainer.appendChild(rootList);
-
-
 }
 
 // =====================================================
@@ -706,14 +768,13 @@ function renderCategoryTree(tree) {
 
 async function initializeApp() {
 
+    categoryTreeContainer.innerHTML = "";
 
     renderCategoryTree(
-        CATEGORY_TREE
+        CATEGORY_TREE,
+        categoryTreeContainer
     );
 
     await loadNotes();
-
-
 }
-
 initializeApp();
