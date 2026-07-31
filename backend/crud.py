@@ -1,9 +1,6 @@
 from sqlalchemy.orm import Session
-
 from .models import Note, User
 from .schemas import NoteCreate, NoteUpdate, UserCreate
-
-
 # -------------------------
 # USER CRUD
 # -------------------------
@@ -62,6 +59,13 @@ def get_notes(db: Session, tag: str | None = None):
     return query.order_by(
         Note.created_at.desc()
     ).all()
+
+def get_notes_sorted_by_title(db: Session):
+    return (
+        db.query(Note)
+        .order_by(Note.title.asc())
+        .all()
+    )
 
 
 def get_note_by_id(db: Session, note_id: int):

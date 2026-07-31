@@ -1,22 +1,35 @@
 import time
-from typing import Callable, Awaitable
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Header, HTTPException, UploadFile
+
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    UploadFile,
+)
 
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from . import crud
+from .algorithms import (
+    insertion_sort_by_key,
+    binary_search_iterative,
+    binary_search_recursive,
+    linear_search,
+)
 from .database import Base, engine, get_db
+from .models import Note
 from .schemas import (
     NoteCreate,
     NoteResponse,
     NoteUpdate,
     UserCreate,
     UserResponse,
-    
 )
-
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
@@ -215,6 +228,149 @@ def get_notes(
         tag=tag
     )
 
+@app.get("/notes/search")
+def search_notes(
+    keyword: str | None = None,
+    sort_by: str | None = None,
+    db: Session = Depends(get_db)
+):
+    notes = crud.get_notes(db)
+
+    # Date sorting mode
+    if sort_by == "date":
+        notes_data = []
+
+        for note in notes:
+            notes_data.append({
+                "id": note.id,
+                "title": note.title,
+                "content": note.content,
+                "tag": note.tag,
+                "owner_id": note.owner_id,
+                "created_at": note.created_at,
+                "created_at_epoch": note.created_at.timestamp()
+            })
+
+        return insertion_sort_by_key(
+            notes_data,
+            key="created_at_epoch"
+        )
+
+    # Relevance mode
+    if keyword:
+        keyword_lower = keyword.lower()
+        notes_data = []
+
+        for note in notes:
+            content_lower = note.content.lower()
+
+            score = content_lower.count(keyword_lower)
+
+            notes_data.append({
+                "id": note.id,
+                "title": note.title,
+                "content": note.content,
+                "tag": note.tag,
+                "owner_id": note.owner_id,
+                "created_at": note.created_at,
+                "score": score
+            })
+
+        ranked_notes = insertion_sort_by_key(
+            notes_data,
+            key="score"
+        )
+
+        return ranked_notes[:5]
+
+    return []
+
+@app.get("/notes/lookup")
+def lookup_note(
+    title: str,
+    algo: str = "iterative",
+    db: Session = Depends(get_db)
+):
+    # Get notes ordered by title (SQL ORDER BY)
+    notes = crud.get_notes_sorted_by_title(db)
+
+    # Create a sorted list of titles
+    sorted_titles = []
+
+    for note in notes:
+        sorted_titles.append(note.title)
+
+    # Choose algorithm
+    if algo == "iterative":
+        index = binary_search_iterative(
+            sorted_titles,
+            title
+        )
+
+    elif algo == "recursive":
+        index = binary_search_recursive(
+            sorted_titles,
+            title,
+            0,
+            len(sorted_titles) - 1
+        )
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid algorithm. Use iterative or recursive."
+        )
+
+    # Not found
+    if index == -1:
+        return {
+            "message": "Note not found"
+        }
+
+    # Return matching note
+    note = notes[index]
+
+    return {
+        "id": note.id,
+        "title": note.title,
+        "content": note.content,
+        "tag": note.tag,
+        "owner_id": note.owner_id,
+        "created_at": note.created_at
+    }
+
+@app.get("/notes/quick-find")
+def quick_find(
+    tag: str,
+    db: Session = Depends(get_db)
+):
+    notes = db.query(Note).all()
+
+    notes_data = []
+
+    for note in notes:
+        notes_data.append({
+            "id": note.id,
+            "title": note.title,
+            "content": note.content,
+            "tag": note.tag,
+            "owner_id": note.owner_id
+        })
+
+    result = linear_search(
+        notes_data,
+        key="tag",
+        value=tag
+    )
+
+    if result is None:
+        return {
+            "message": "No note found",
+            "tag": tag
+        }
+
+    return result
+    
 @app.get(
     "/notes/{note_id}",
     response_model=NoteResponse
@@ -261,6 +417,41 @@ def update_note(
         note,
         note_data
     )
+
+@app.get("/notes/quick-find")
+def quick_find(
+    tag: str,
+    db: Session = Depends(get_db)
+):
+
+    notes = db.query(Note).all()
+
+    notes_data = []
+
+    for note in notes:
+        notes_data.append({
+            "id": note.id,
+            "title": note.title,
+            "content": note.content,
+            "tag": note.tags
+        })
+
+
+    result = linear_search(
+        notes_data,
+        key="tag",
+        value=tag
+    )
+
+
+    if result is None:
+        return {
+            "message": "No note found",
+            "tag": tag
+        }
+
+
+    return result
 
 @app.get("/reports/tag-summary")
 def tag_summary(

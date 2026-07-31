@@ -1,10 +1,7 @@
 from datetime import datetime
-
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-
 from .database import Base
-
 
 class User(Base):
     __tablename__ = "users"
@@ -43,9 +40,7 @@ class User(Base):
 
 class Note(Base):
     __tablename__ = "notes"
-
     id = Column(Integer, primary_key=True, index=True)
-
     title = Column(
         String(120),
         nullable=False
