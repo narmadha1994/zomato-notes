@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from .models import Note, User
-from .schemas import NoteCreate, NoteUpdate, UserCreate
+from models import Note, User
+from schemas import NoteCreate, NoteUpdate, UserCreate
 # -------------------------
 # USER CRUD
 # -------------------------

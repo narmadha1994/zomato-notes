@@ -1,5 +1,15 @@
-import time
+from ai_sample_notes import AI_SAMPLE_NOTES
+from semantic_search import (
+    create_embeddings,
+    semantic_search,
+)
 
+import json
+import logging
+from ai_service import get_ai_response
+from prompt_template import AUTO_TAG_PROMPT
+
+import time
 from fastapi import (
     BackgroundTasks,
     Depends,
@@ -14,16 +24,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from . import crud
-from .algorithms import (
+import crud
+from algorithms import (
     insertion_sort_by_key,
     binary_search_iterative,
     binary_search_recursive,
     linear_search,
 )
-from .database import Base, engine, get_db
-from .models import Note
-from .schemas import (
+from database import Base, engine, get_db
+from models import Note
+from schemas import (
     NoteCreate,
     NoteResponse,
     NoteUpdate,
@@ -73,6 +83,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
+AI_EMBEDDINGS = create_embeddings(AI_SAMPLE_NOTES)
+
 def index_note(note_id: int):
     time.sleep(3)
     print(f"Background indexing completed for note {note_id}")
@@ -105,32 +117,60 @@ def root():
     }
 
 
-@app.post(
-    "/users",
-    response_model=UserResponse,
-    status_code=201
-)
-def create_user(
-    user_data: UserCreate,
+@app.post("/notes", response_model=None)
+def create_note(
+    note_data: NoteCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    existing_user = crud.get_user_by_email(
+    owner = crud.get_user_by_id(
         db,
-        user_data.email
+        note_data.owner_id
     )
 
-    if existing_user:
+    if owner is None:
         raise HTTPException(
-            status_code=409,
-            detail="A user with this email already exists"
+            status_code=404,
+            detail="Owner user not found"
         )
 
-    return crud.create_user(
+    note = crud.create_note(
         db,
-        user_data
+        note_data
     )
 
+    background_tasks.add_task(
+        index_note,
+        note.id
+    )
 
+    ai_suggestion = None
+
+    try:
+        ai_response = get_ai_response(
+            user_message=note.content,
+            system_prompt=AUTO_TAG_PROMPT
+        )
+
+        ai_suggestion = json.loads(ai_response)
+
+    except Exception:
+        logging.exception(
+            "Failed to parse AI response"
+        )
+
+        ai_suggestion = None
+
+    return {
+        "id": note.id,
+        "title": note.title,
+        "content": note.content,
+        "tag": note.tag,
+        "owner_id": note.owner_id,
+        "created_at": note.created_at,
+        "ai_suggestion": ai_suggestion
+    }
+    
 @app.post(
     "/notes",
     response_model=NoteResponse,
@@ -370,6 +410,18 @@ def quick_find(
         }
 
     return result
+
+@app.get("/notes/smart-search")
+def smart_search(q: str):
+
+    results = semantic_search(
+        q,
+        AI_SAMPLE_NOTES,
+        AI_EMBEDDINGS
+    )
+
+    return results
+
     
 @app.get(
     "/notes/{note_id}",
@@ -423,9 +475,7 @@ def quick_find(
     tag: str,
     db: Session = Depends(get_db)
 ):
-
     notes = db.query(Note).all()
-
     notes_data = []
 
     for note in notes:
@@ -436,21 +486,17 @@ def quick_find(
             "tag": note.tags
         })
 
-
     result = linear_search(
         notes_data,
         key="tag",
         value=tag
     )
 
-
     if result is None:
         return {
             "message": "No note found",
             "tag": tag
         }
-
-
     return result
 
 @app.get("/reports/tag-summary")
@@ -533,6 +579,7 @@ def user_notes_report(
         for row in result
     ]
 
+
 @app.delete(
     "/notes/{note_id}",
     status_code=204,
@@ -556,3 +603,4 @@ def delete_note(
     crud.delete_note(db, note)
 
     return None
+
