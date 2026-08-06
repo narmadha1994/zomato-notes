@@ -112,7 +112,6 @@ To populate the database with sample users and notes:
 python seed.py
 
 The seed process creates:
-
 * Sample users
 * Part 1 notes
 * Demo knowledge-base notes
@@ -138,7 +137,6 @@ http://127.0.0.1:8000/docs
 # Running the Frontend
 
 The frontend is served using a local static development server.
-
 The expected frontend origin is:
 
 http://127.0.0.1:5500
@@ -165,7 +163,6 @@ The backend uses FastAPI `CORSMiddleware` to allow the frontend to communicate w
 ### GET `/`
 
 Checks whether the API is running.
-
 Example:
 
 GET http://127.0.0.1:8000/
@@ -177,7 +174,6 @@ json
 ---
 
 # User Endpoints
-
 ## Create User
 
 ### POST `/users`
@@ -246,7 +242,6 @@ The endpoint requires the custom header:
 x-token: zomato-secret-token
 Invalid or missing tokens return:
 403 Forbidden
-
 ---
 
 # Import Notes
@@ -339,15 +334,7 @@ json
     "created_at": "2026-07-30T17:14:29.111113",
     "score": 2
   },
-  {
-    "id": 16,
-    "title": "Fruit Basket Plan",
-    "content": "Planning a fruit basket with apple, banana, and orange slices for the event.",
-    "tag": "random",
-    "owner_id": 1,
-    "created_at": "2026-07-30T17:14:29.111112",
-    "score": 1
-  },
+  
   {
     "id": 22,
     "title": "Language Practice",
@@ -357,17 +344,7 @@ json
     "created_at": "2026-07-30T17:14:29.111119",
     "score": 0
   },
-  {
-    "id": 21,
-    "title": "Kitchen Inventory",
-    "content": "Checked the kitchen inventory; running low on coffee and sugar.",
-    "tag": "random",
-    "owner_id": 1,
-    "created_at": "2026-07-30T17:14:29.111118",
-    "score": 0
-  }
-]
-
+  
 This test demonstrates that:
 
 * The keyword occurrences are counted correctly.
@@ -425,15 +402,7 @@ json
     "created_at": "2026-07-30T17:14:29.111118",
     "created_at_epoch": 1785411869.111118
   },
-  {
-    "id": 20,
-    "title": "Journal Entry",
-    "content": "Reflected on the week's progress and set goals for next week.",
-    "tag": "random",
-    "owner_id": 1,
-    "created_at": "2026-07-30T17:14:29.111117",
-    "created_at_epoch": 1785411869.111117
-  }
+  
 ]
 
 The results demonstrate that the notes are sorted by descending creation time.
@@ -497,11 +466,9 @@ Both binary-search functions are integrated into:
 text
 GET /notes/lookup?title=<exact title>&algo=iterative|recursive
 The backend first obtains notes using SQL-level ordering:
-
 .order_by(Note.title.asc())
 
 This ensures that the title list is alphabetically sorted before binary search is performed.
-
 Python built-in sorting is not used.
 
 The `algo` parameter determines which search implementation is used.
@@ -511,14 +478,10 @@ The `algo` parameter determines which search implementation is used.
 ## Iterative Test
 
 Request:GET /notes/lookup?title=Morning%20Run&algo=iterative
-Result:
-```text
-HTTP 200 OK
-```
-
+Result: HTTP 200 OK
 Response:
 
-```json
+json
 {
   "id": 4,
   "title": "Morning Run",
@@ -527,7 +490,6 @@ Response:
   "owner_id": 1,
   "created_at": "2026-07-30T17:14:29.096502"
 }
-```
 
 ---
 
@@ -729,17 +691,12 @@ The value represents the approximate time required to process the request.
 # Background Task
 
 When creating a note, the backend includes a background indexing task.
-
 The indexing function simulates a delayed indexing operation:
 
-```python
+python
 def index_note(note_id: int):
     time.sleep(3)
-```
 The purpose is to demonstrate FastAPI `BackgroundTasks`.
-
----
-
 # Verification
 
 The following endpoints have been tested successfully through FastAPI Swagger:
@@ -808,40 +765,138 @@ flag to sequentially scan the list.
 # Example API Testing
 
 Swagger UI can be used to test all endpoints:
-
-```text
 http://127.0.0.1:8000/docs
-```
+
 Recommended tests:
-
 ### Relevance
-
-```text
 /notes/search?keyword=apple
-```
 
 ### Date
-
-```text
 /notes/search?sort_by=date
-```
-
 ### Iterative lookup
-
-```text
 /notes/lookup?title=Morning%20Run&algo=iterative
-```
 
 ### Recursive lookup
-
-```text
 /notes/lookup?title=Morning%20Run&algo=recursive
-```
-
 ### Linear search
-
-```text
 /notes/quick-find?tag=work
-```
 ---
+
+# Part 3 – Integrated Intelligence Layer
+
+## Overview
+
+Part 3 extends the Zomato Notes application with AI-powered note intelligence and semantic search.
+It introduces two major capabilities:
+- AI Auto-Tagging using a mock LLM interface
+- Offline Semantic Search using Sentence Transformers
+
+---
+
+## Features
+
+### 1. AI Auto-Tagging
+
+When a new note is created:
+
+- The backend sends the note content to `get_ai_response()`.
+- The AI returns:
+  - Suggested tags
+  - A one-sentence summary
+- The response is parsed using `json.loads()`.
+- The API returns:
+
+```json
+{
+  "ai_suggestion": {
+    "tags": [
+      "work",
+      "backend"
+    ],
+    "summary": "Backend API deployment reminder."
+  }
+}
+```
+
+If parsing fails:
+
+- The note is still created successfully.
+- `ai_suggestion` is returned as `null`.
+- The raw AI response is logged for debugging.
+
+---
+
+### 2. AI Suggestion Panel
+
+After creating a note, the frontend displays:
+
+- Suggested tags
+- AI-generated summary
+- "Apply as Tag" button
+
+The Apply button updates the note using the existing
+PUT /notes/{id}
+endpoint.
+---
+
+### 3. Local Semantic Search
+
+The project uses
+
+``` sentence-transformers==3.0.0 ```
+with the pretrained model
+sentence-transformers/all-MiniLM-L6-v2
+The model generates embeddings for every sample note.
+A search query is converted into an embedding and compared against all notes using cosine similarity.
+The backend returns the Top 3 most relevant notes ranked by similarity.
+
+Example response:
+
+```json
+[
+    {
+        "title": "Gym schedule change",
+        "score": 0.6546
+    },
+    {
+        "title": "Morning workout plan",
+        "score": 0.6399
+    },
+    
+]
+---
+
+### 4. Smart Search API
+
+Endpoint
+GET /notes/smart-search?q=<query>
+Example
+
+GET /notes/smart-search?q=leg day exercise plan
+
+
+Returns
+- Top 3 semantically similar notes
+- Similarity score
+- Ranked from highest similarity to lowest
+
+---
+
+### 5. Frontend Integration
+
+The frontend includes:
+
+- Smart Search (AI) input
+- Search button
+- Ranked semantic search results
+- Similarity score display
+- AI Suggestion panel for newly created notes
+- Apply Tag functionality
+
+---
+
+## Notes
+- Semantic search works completely offline after the model has been downloaded once.
+- No API key is required for semantic search.
+- AI Auto-Tagging currently uses a deterministic mock AI service for reproducible outputs.
 

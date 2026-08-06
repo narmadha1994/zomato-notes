@@ -80,38 +80,7 @@ async function createNote(noteData) {
 
 }
 
-async function deleteNote(noteId, token) {
 
-    const response = await fetch(
-        `${API_URL}/notes/${noteId}`,
-        {
-            method: "DELETE",
-
-            headers: {
-                "x-token": token
-            }
-        }
-    );
-
-    if (!response.ok) {
-
-        let errorMessage = "Failed to delete note";
-
-        try {
-            const errorData = await response.json();
-
-            if (errorData.detail) {
-                errorMessage = errorData.detail;
-            }
-
-        } catch (error) {
-            console.error("Could not read API error:", error);
-        }
-
-        throw new Error(errorMessage);
-    }
-    return true;
-}
 
 // =====================================================
 // DOM ELEMENTS
@@ -190,30 +159,144 @@ function renderNotes(notes) {
         if (note.ai_suggestion) {
 
             const suggestion = document.createElement("div");
+            suggestion.className = "ai-suggestion";
 
-            suggestion.className =
-                "ai-suggestion";
+            const heading = document.createElement("strong");
+            heading.textContent = "AI Suggests";
+            suggestion.appendChild(heading);
 
+            // Summary
+            const summary = document.createElement("p");
+            summary.textContent =
+                "Summary: " + note.ai_suggestion.summary;
+            suggestion.appendChild(summary);
 
-            const suggestionTitle =
-                document.createElement("strong");
+            // Tags
+            const tags = document.createElement("p");
+            tags.textContent =
+                "Tags: " + note.ai_suggestion.tags.join(", ");
+            suggestion.appendChild(tags);
 
-            suggestionTitle.textContent =
-                "AI Suggestion";
+            // Apply button
+            const applyButton = document.createElement("button");
+            applyButton.textContent = "Apply as tag";
 
-            suggestion.appendChild(suggestionTitle);
+            applyButton.addEventListener("click", async function () {
 
+                const firstTag = note.ai_suggestion.tags[0];
 
-            const suggestionText =
-                document.createElement("span");
+                const response = await fetch(
+                    `http://127.0.0.1:8000/notes/${note.id}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            title: note.title,
+                            content: note.content,
+                            tag: firstTag
+                        })
+                    }
+                );
 
-            suggestionText.textContent =
-                note.ai_suggestion;
+                if (response.ok) {
+                    loadNotes();
+                }
+                else {
+                    alert("Unable to update tag.");
+                }
 
-            suggestion.appendChild(suggestionText);
+            });
 
-
+            suggestion.appendChild(applyButton);
             noteCard.appendChild(suggestion);
+        }
+
+        const smartSearchButton = document.getElementById("smart-search-button");
+
+        smartSearchButton.addEventListener(
+            "click",
+            smartSearch
+        );
+
+        async function smartSearch() {
+
+            const query =
+                document.getElementById(
+                    "smart-search-input"
+                ).value;
+
+            const response =
+                await fetch(
+                    `http://127.0.0.1:8000/notes/smart-search?q=${encodeURIComponent(query)}`
+                );
+
+            const results =
+                await response.json();
+
+            displaySmartResults(results);
+
+        }
+
+        function displaySmartResults(results) {
+
+            const container =
+                document.getElementById(
+                    "smart-search-results"
+                );
+
+            container.replaceChildren();
+
+            results.forEach(function (note) {
+
+                const card =
+                    createSmartSearchCard(note);
+
+                container.appendChild(card);
+
+            });
+
+        }
+
+        function createSmartSearchCard(note) {
+
+            const card =
+                document.createElement("article");
+
+            card.className =
+                "smart-search-card";
+
+            const title =
+                document.createElement("h3");
+
+            title.textContent =
+                note.title;
+
+            card.appendChild(title);
+
+            const content =
+                document.createElement("p");
+
+            content.textContent =
+                note.content;
+
+            card.appendChild(content);
+
+            const score =
+                document.createElement("p");
+
+            score.className =
+                "similarity-score";
+
+            score.textContent =
+                "Similarity Score: " +
+                note.score;
+
+            card.appendChild(score);
+
+            return card;
+
         }
 
 
@@ -243,7 +326,6 @@ function renderNotes(notes) {
             }
         );
 
-
         noteCard.appendChild(deleteButton);
 
 
@@ -259,7 +341,6 @@ function renderNotes(notes) {
 // =====================================================
 
 async function loadNotes() {
-
 
     notesLoading.hidden = false;
     notesError.hidden = true;
@@ -300,41 +381,20 @@ async function loadNotes() {
 noteForm.addEventListener(
     "submit",
     async function (event) {
-
-
         event.preventDefault();
-
-
         // Clear previous validation message
         formError.textContent = "";
         formError.hidden = true;
 
 
-        const titleInput =
-            document.getElementById("title");
-
-        const contentInput =
-            document.getElementById("content");
-
-        const tagInput =
-            document.getElementById("tag");
-
-        const ownerInput =
-            document.getElementById("owner_id");
-
-
-        const title =
-            titleInput.value.trim();
-
-        const content =
-            contentInput.value.trim();
-
-        const tag =
-            tagInput.value.trim();
-
-        const ownerId =
-            Number(ownerInput.value);
-
+        const titleInput = document.getElementById("title");
+        const contentInput = document.getElementById("content");
+        const tagInput = document.getElementById("tag");
+        const ownerInput = document.getElementById("owner_id");
+        const title = titleInput.value.trim();
+        const content = contentInput.value.trim();
+        const tag = tagInput.value.trim();
+        const ownerId = Number(ownerInput.value);
 
         // Client-side validation
         if (!title || !content) {
@@ -343,7 +403,6 @@ noteForm.addEventListener(
                 "Title and content are required.";
 
             formError.hidden = false;
-
             return;
         }
 
@@ -352,9 +411,7 @@ noteForm.addEventListener(
 
             formError.textContent =
                 "Owner ID is required.";
-
             formError.hidden = false;
-
             return;
         }
 
@@ -366,32 +423,21 @@ noteForm.addEventListener(
             owner_id: ownerId
         };
 
-
         try {
 
             const newNote =
                 await createNote(noteData);
 
-
             // Add returned note to our local data
             allNotes.push(newNote);
-
-
             // Clear search so new note is visible
             searchInput.value = "";
-
             searchStatus.textContent = "";
-
-
             // Render the returned note without
             // reloading the whole page
             renderNotes(allNotes);
-
-
             // Reset form
             noteForm.reset();
-
-
         } catch (error) {
 
             console.error(
@@ -405,8 +451,6 @@ noteForm.addEventListener(
             formError.hidden = false;
         }
     }
-
-
 );
 
 // =====================================================
@@ -760,6 +804,39 @@ function renderCategoryTree(node, parentElement) {
     } else {
         toggleButton.disabled = true;
     }
+}
+
+async function deleteNote(noteId, token) {
+
+    const response = await fetch(
+        `${API_URL}/notes/${noteId}`,
+        {
+            method: "DELETE",
+
+            headers: {
+                "x-token": token
+            }
+        }
+    );
+
+    if (!response.ok) {
+
+        let errorMessage = "Failed to delete note";
+
+        try {
+            const errorData = await response.json();
+
+            if (errorData.detail) {
+                errorMessage = errorData.detail;
+            }
+
+        } catch (error) {
+            console.error("Could not read API error:", error);
+        }
+
+        throw new Error(errorMessage);
+    }
+    return true;
 }
 
 // =====================================================

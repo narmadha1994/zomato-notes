@@ -11,10 +11,13 @@
 <body>
 
     <header class="site-header">
+        <div class="logo">
+            🍽️
+        </div>
         <h1>Zomato Notes</h1>
-        <p>Internal Notes Dashboard</p>
-    </header>
+        <p>AI Powered Internal Notes Dashboard</p>
 
+    </header>
     <nav class="top-nav">
         <a href="#notes-section">Notes</a>
         <a href="#add-note-section">Add Note</a>
@@ -66,12 +69,22 @@
                 </button>
 
             </div>
-
             <div id="notesLoading" class="loading-message">
                 Loading notes...
             </div>
             <div class="quick-tag-area">
-                <h3>Quick Tag Jump</h3>
+
+                <h3>Smart Search (AI)</h3>
+
+                <input id="smart-search-input" placeholder="Search by meaning...">
+
+                <button id="smart-search-button">
+                    Smart Search
+                </button>
+
+                <div id="smart-search-results"></div>
+
+                <h4>Quick Tag Jump</h4>
                 <button type="button" class="quick-tag-button" data-tag="work">
                     Work
                 </button>
@@ -104,7 +117,7 @@
 
         <!-- Add Note -->
         <section id="add-note-section" class="section-card">
-            <h2>Add Note</h2>
+            <h4>Add Note</h4>
 
             <form id="noteForm" novalidate>
                 <div class="form-group">
@@ -143,11 +156,12 @@
 
             <!-- Categories -->
             <section id="categories-section" class="section-card">
-                <h2>Categories</h2>
+                <h5>Categories</h5>
                 <div id="categoryTree" class="category-tree"></div>
             </section>
 
     </main>
+
 
 
     <footer class="site-footer">
